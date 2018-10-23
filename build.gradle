@@ -4,7 +4,7 @@ plugins {
   id "com.diffplug.gradle.spotless" version "1.3.3"
 }
 apply plugin: 'maven-publish'
-apply plugin: 'checkstyle'
+//apply plugin: 'checkstyle'
 
 allprojects {
   apply plugin: 'java'
@@ -47,6 +47,11 @@ jacocoTestReport {
   }
 }
 
+task copyDeps(type: Copy) {
+  from configurations.testRuntime
+  into 'build/dependency-cache'
+}
+
 task wrapper(type: Wrapper) { gradleVersion = '2.14.1' }
 
 task sourcesJar(type: Jar, dependsOn: classes) {
@@ -63,6 +68,17 @@ task testJar(type: Jar) {
     classifier = 'tests'
     from sourceSets.test.output
     from sourceSets.test.allSource
+}
+
+jar {
+    from {
+        (configurations.runtime).collect {
+            it.isDirectory() ? it : zipTree(it)
+        }
+    }
+    manifest {
+        attributes("Main-Class": "com.greghaskins.spectrum.JunitRunner" )
+    }
 }
 
 artifacts { archives sourcesJar, javadocJar, testJar }
@@ -87,10 +103,10 @@ spotless {
 
 classes { dependsOn 'spotlessApply' }
 
-checkstyle {
-  toolVersion = '6.18'
-  configFile = rootProject.file('config/google_checks.xml')
-}
+//checkstyle {
+//  toolVersion = '6.18'
+//  configFile = rootProject.file('config/google_checks.xml')
+//}
 
 def verifyCheckstyleWarningsTask (name, warningsFileName) {
   task(name) {
@@ -103,13 +119,24 @@ def verifyCheckstyleWarningsTask (name, warningsFileName) {
   }
 }
 
-checkstyleMain {
-  finalizedBy verifyCheckstyleWarningsTask('strictCheckstyleMain', 'main.xml')
+test {
+  afterSuite { desc, result ->
+    if (!desc.parent)
+      println("${result.resultType} " +
+              "(${result.testCount} tests, " +
+              "${result.successfulTestCount} successes, " +
+              "${result.failedTestCount} failures, " +
+              "${result.skippedTestCount} skipped)")
+  }
 }
 
-checkstyleTest {
-  finalizedBy verifyCheckstyleWarningsTask('strictCheckstyleTest', 'test.xml')
-}
+//checkstyleMain {
+//  finalizedBy verifyCheckstyleWarningsTask('strictCheckstyleMain', 'main.xml')
+//}
+//
+//checkstyleTest {
+//  finalizedBy verifyCheckstyleWarningsTask('strictCheckstyleTest', 'test.xml')
+//}
 
 def pomConfig = {
     licenses {
