@@ -209,6 +209,8 @@ public class JunitRunner {
         // - Add target/classes to classpath at runtime
         // - target/test-classes to classpath at runtime
         // - target/dependencies to classpath at runtime
+
+        - To make it nice we need a continues compiler OR being able to run directly from source.
     
         - Add spectrum detection
     
