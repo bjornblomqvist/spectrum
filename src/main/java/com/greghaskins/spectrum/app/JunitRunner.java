@@ -1,5 +1,7 @@
-package com.greghaskins.spectrum;
+package com.greghaskins.spectrum.app;
 
+import static com.greghaskins.spectrum.app.ClassPathSetup.isGradleProject;
+import static com.greghaskins.spectrum.app.ClassPathSetup.isMavenProject;
 import static java.util.stream.Collectors.toList;
 
 import org.junit.runner.Computer;
@@ -26,9 +28,13 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
+/*
+ * Two parts
+ * 
+ * 1. Setup classLoader - Add all dependencies - Add all classes (main + test) - Add spectrum jar (this
+ * jar) 2. Run test runner within the classLoader
+ */
 public class JunitRunner {
   public void run(Class[] testClassesToRun, String[] classesToMatch, boolean listOnly)
       throws ClassNotFoundException {
@@ -130,29 +136,46 @@ public class JunitRunner {
       throws ClassNotFoundException, IOException, InterruptedException, NoSuchMethodException,
       InvocationTargetException, IllegalAccessException {
 
-    URLClassLoader classLoader = (URLClassLoader) JunitRunner.class.getClassLoader();
+    //    MyURLClassLoader classLoader = new MyURLClassLoader(JunitRunner.class.getClassLoader().getParent());
+    //
+    //    //URLClassLoader classLoader = (URLClassLoader) JunitRunner.class.getClassLoader();
+    //
+    //    Method method = URLClassLoader.class.getDeclaredMethod("addURL", new Class[] {URL.class});
+    //    method.setAccessible(true);
+    //
+    //    method.invoke(classLoader, new Object[] {new File("./build/classes/main/").toURI().toURL()});
+    //    method.invoke(classLoader, new Object[] {new File("./build/classes/test/").toURI().toURL()});
+    //
+    //    List<Path> jarPaths = Files.walk(new File("./build/dependency-cache/").toPath()).collect(toList());
+    //
+    //    for (Path path : jarPaths) {
+    //      if (path.toString().endsWith(".jar")) {
+    //        method.invoke(classLoader, new Object[] {path.toUri().toURL()});
+    //      }
+    //    }
 
-    Method method = URLClassLoader.class.getDeclaredMethod("addURL", new Class[] {URL.class});
-    method.setAccessible(true);
-
-    method.invoke(classLoader, new Object[] {new File("./build/classes/main").toURI().toURL()});
-    method.invoke(classLoader, new Object[] {new File("./build/classes/test").toURI().toURL()});
-
-    List<Path> jarPaths = Files.walk(new File("./build/dependency-cache/").toPath()).collect(toList());
-
-    for (Path path : jarPaths) {
-      if (path.toString().endsWith(".jar")) {
-        method.invoke(classLoader, new Object[] {path.toUri().toURL()});
-      }
-    }
+    ClassLoader classLoader = JunitRunner.class.getClassLoader();
 
     // Find and load all junit test classes
     Set<Class> classes = new HashSet<>();
-    Path absoluteTestClassPath = new File("build/classes/test/").toPath();
+    Path absoluteTestClassPath = null;
+
+    if (isGradleProject()) {
+      absoluteTestClassPath = new File("./build/classes/test/").toPath();
+    }
+
+    if (isMavenProject()) {
+      absoluteTestClassPath = new File("./target/test-classes/").toPath();
+    }
+
     List<Path> paths = Files.walk(absoluteTestClassPath).collect(toList());
 
     for (Path path : paths) {
       if (path.toString().contains("$")) {
+        continue;
+      }
+
+      if (!path.toString().endsWith(".class")) {
         continue;
       }
 
@@ -162,7 +185,7 @@ public class JunitRunner {
 
       String className = path
           .toString()
-          .replaceAll("^build\\/classes\\/test\\/", "")
+          .replaceAll(absoluteTestClassPath.toString() + "/", "")
           .replaceAll("\\.class$", "")
           .replaceAll("\\/", ".");
       Class clazz = classLoader.loadClass(className);
@@ -209,9 +232,9 @@ public class JunitRunner {
         // - Add target/classes to classpath at runtime
         // - target/test-classes to classpath at runtime
         // - target/dependencies to classpath at runtime
-
-        - To make it nice we need a continues compiler OR being able to run directly from source.
     
+        - Move to running source files (no compile need =)
+        - To make it nice we need a continues compiler OR being able to run directly from source.
         - Add spectrum detection
     
         # Test
